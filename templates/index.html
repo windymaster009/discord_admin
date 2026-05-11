@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>President Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <main class="dashboard">
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">Discord Admin Panel</p>
+                <h1>President Dashboard</h1>
+            </div>
+            <div class="session-card">
+                <span>Logged in as</span>
+                <strong>{{ actor }}</strong>
+            </div>
+        </header>
+
+        <section class="stats-grid" aria-label="Server statistics">
+            <article class="stat-card">
+                <span>Total Members</span>
+                <strong>{{ total_members }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Total Humans</span>
+                <strong>{{ human_count }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Total Bots</span>
+                <strong>{{ bot_count }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Total Roles</span>
+                <strong>{{ total_roles }}</strong>
+            </article>
+        </section>
+
+        <section class="chart-grid" aria-label="Dashboard charts">
+            <article class="chart-card chart-card-small">
+                <div class="card-title">
+                    <span>Member Types</span>
+                    <small>Humans vs bots</small>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="memberTypeChart"></canvas>
+                </div>
+            </article>
+
+            <article class="chart-card">
+                <div class="card-title">
+                    <span>Top Roles</span>
+                    <small>Members per role</small>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="topRoleChart"></canvas>
+                </div>
+            </article>
+
+            <article class="chart-card">
+                <div class="card-title">
+                    <span>Member Join Activity</span>
+                    <small>Last 7 days</small>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="joinActivityChart"></canvas>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="panel-toolbar">
+                <div>
+                    <h2>Members</h2>
+                    <p>{{ members|length }} visible members</p>
+                </div>
+
+                <form method="get" class="search-form">
+                    <input type="hidden" name="session" value="{{ session_id }}">
+                    <input name="q" value="{{ request.args.get('q', '') }}" placeholder="Search member name or ID">
+                    <button class="btn btn-apply">Search</button>
+                </form>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>ID</th>
+                            <th>Roles</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for m in members %}
+                        <tr>
+                            <td>
+                                <div class="member-card">
+                                    {% if m.avatar %}
+                                    <img src="https://cdn.discordapp.com/avatars/{{ m.id }}/{{ m.avatar }}.png?size=64" class="avatar" alt="">
+                                    {% else %}
+                                    <div class="avatar avatar-placeholder">{{ m.display[:1] }}</div>
+                                    {% endif %}
+
+                                    <div class="member-info">
+                                        <div class="display-name">
+                                            {{ m.display }}
+
+                                            {% if m.bot %}
+                                            <span class="bot-tag">BOT</span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="username">{{ m.name }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="muted mono">{{ m.id }}</td>
+
+                            <td class="roles-cell">
+                                {% for role in m.roles %}
+                                <span class="role-badge">{{ role.name }}</span>
+                                {% else %}
+                                <span class="muted">No roles</span>
+                                {% endfor %}
+                            </td>
+
+                            <td class="muted">{{ m.joined }}</td>
+
+                            <td>
+                                <div class="action-group">
+                                    <form method="post" action="/kick">
+                                        <input type="hidden" name="session" value="{{ session_id }}">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+                                        <button class="btn btn-kick">Kick</button>
+                                    </form>
+
+                                    <form method="post" action="/role" class="role-form">
+                                        <input type="hidden" name="session" value="{{ session_id }}">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+
+                                        <select name="role_id">
+                                            {% for role in roles %}
+                                            <option value="{{ role.id }}">{{ role.name }}</option>
+                                            {% endfor %}
+                                        </select>
+
+                                        <div class="role-actions">
+                                            <button class="btn btn-add" name="action" value="add">Add</button>
+                                            <button class="btn btn-remove" name="action" value="remove">Remove</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        window.dashboardCharts = {{ chart_data | tojson }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+
+</html>

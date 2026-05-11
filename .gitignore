@@ -1,0 +1,4 @@
+.env
+approvals.db
+__pycache__/
+*.pyc

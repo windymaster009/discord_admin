@@ -1,0 +1,16 @@
+[Unit]
+Description=Windy Discord moderation bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/bot-role
+EnvironmentFile=/home/pi/bot-role/.env
+ExecStart=/home/pi/bot-role/.venv/bin/python /home/pi/bot-role/bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
