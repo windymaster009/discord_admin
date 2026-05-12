@@ -43,16 +43,39 @@ SUSPICIOUS_LINK_TERMS = (
 )
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff")
-USER_DM_MESSAGE = (
-    "Your message was removed because it looked like scam/spam content. "
-    "You have been muted for 2 hours while staff review this."
-)
 
 
 def clean_content(message):
     """Keep logs readable and avoid giant embeds from long spam messages."""
     content = (message.content or "").strip()
     return content[:1000] if content else "[No text content]"
+
+
+def attachment_summary(message):
+    """Show useful attachment details without making embeds too large."""
+    if not message.attachments:
+        return "0"
+
+    lines = []
+    for index, attachment in enumerate(message.attachments[:5], start=1):
+        filename = attachment.filename or "attachment"
+        lines.append(f"{index}. [{filename}]({attachment.url})")
+
+    if len(message.attachments) > 5:
+        lines.append(f"...and {len(message.attachments) - 5} more")
+
+    return "\n".join(lines)
+
+
+def first_image_url(message):
+    for attachment in message.attachments:
+        content_type = (attachment.content_type or "").lower()
+        filename = (attachment.filename or "").lower()
+
+        if content_type.startswith("image/") or filename.endswith(IMAGE_EXTENSIONS):
+            return attachment.url
+
+    return None
 
 
 def is_exempt_user(member):
@@ -85,8 +108,8 @@ def has_image_attachment(message):
 
 
 def prune_history(history, now, seconds):
-    """Keep only timestamps inside the active spam window."""
-    while history and now - history[0] > seconds:
+    """Keep only messages inside the active spam window."""
+    while history and now - history[0][0] > seconds:
         history.popleft()
 
 
@@ -100,16 +123,51 @@ def timeout_duration_text():
     return f"{minutes} minute{'s' if minutes != 1 else ''}"
 
 
-def build_staff_details(message, reason, timeout_status):
-    return (
-        f"Security alert in **{message.guild.name}**\n"
-        f"User: {message.author.mention} / {message.author} / `{message.author.id}`\n"
-        f"Channel: {message.channel.mention} (`{message.channel.id}`)\n"
-        f"Reason: {reason}\n"
-        f"Message Content: {clean_content(message)}\n"
-        f"Attachments: {len(message.attachments)}\n"
-        f"Timeout: {timeout_duration_text()} ({timeout_status})"
+def build_user_dm_embed(message, reason):
+    embed = discord.Embed(
+        title="🛡️ Message Removed",
+        description=(
+            "Your message looked like scam/spam content, so Windy removed it "
+            "and muted you while staff review what happened."
+        ),
+        color=discord.Color.orange(),
+        timestamp=datetime.now(timezone.utc),
     )
+    embed.add_field(name="📍 Server", value=message.guild.name, inline=False)
+    embed.add_field(name="🧾 Reason", value=reason, inline=False)
+    embed.add_field(name="🔇 Mute Duration", value=timeout_duration_text(), inline=False)
+    embed.add_field(name="✅ What to do", value="Please wait for staff review. Do not repost the same content.", inline=False)
+    embed.set_footer(text="No kick was performed.")
+    return embed
+
+
+def build_staff_embed(message, reason, action_taken, timeout_status, deleted_count=1):
+    embed = discord.Embed(
+        title="🛡️ Security Alert",
+        description=f"Suspicious activity was detected in **{message.guild.name}**.",
+        color=discord.Color.from_rgb(255, 90, 90),
+        timestamp=datetime.now(timezone.utc),
+    )
+    embed.add_field(name="👤 User", value=f"{message.author.mention}\n`{message.author}`", inline=True)
+    embed.add_field(name="🆔 User ID", value=f"`{message.author.id}`", inline=True)
+    embed.add_field(name="📍 Channel", value=message.channel.mention, inline=True)
+    embed.add_field(name="🚨 Reason", value=reason, inline=False)
+    embed.add_field(name="💬 Message Content", value=clean_content(message), inline=False)
+    embed.add_field(name="🖼️ Attachments", value=attachment_summary(message), inline=False)
+    embed.add_field(name="🧹 Messages Deleted", value=str(deleted_count), inline=True)
+    embed.add_field(name="🔇 Timeout Duration", value=f"{timeout_duration_text()} ({timeout_status})", inline=True)
+    embed.add_field(name="⚙️ Action Taken", value=action_taken, inline=False)
+    if message.guild.icon:
+        embed.set_author(name="Windy Security", icon_url=message.guild.icon.url)
+    else:
+        embed.set_author(name="Windy Security")
+    embed.set_footer(text=f"Message ID: {message.id}")
+
+    image_url = first_image_url(message)
+    if image_url:
+        embed.set_image(url=image_url)
+
+    return embed
 
 
 async def delete_message(message):
@@ -120,9 +178,24 @@ async def delete_message(message):
         return False
 
 
-async def dm_user(message):
+async def delete_messages(messages):
+    deleted_count = 0
+    seen_message_ids = set()
+
+    for message in messages:
+        if message.id in seen_message_ids:
+            continue
+
+        seen_message_ids.add(message.id)
+        if await delete_message(message):
+            deleted_count += 1
+
+    return deleted_count
+
+
+async def dm_user(message, reason):
     try:
-        await message.author.send(USER_DM_MESSAGE)
+        await message.author.send(embed=build_user_dm_embed(message, reason))
         return True
     except Exception:
         return False
@@ -138,7 +211,7 @@ async def timeout_user(message):
         return False
 
 
-async def dm_owner_or_president(bot, message, reason, timeout_status):
+async def dm_owner_or_president(bot, message, reason, action_taken, timeout_status, deleted_count):
     owner_id = config.SECURITY_DM_OWNER_ID
     recipient = None
 
@@ -154,13 +227,13 @@ async def dm_owner_or_president(bot, message, reason, timeout_status):
         if not recipient:
             return False
 
-        await recipient.send(build_staff_details(message, reason, timeout_status))
+        await recipient.send(embed=build_staff_embed(message, reason, action_taken, timeout_status, deleted_count))
         return True
     except Exception:
         return False
 
 
-async def send_security_log(bot, message, reason, action_taken, timeout_status):
+async def send_security_log(bot, message, reason, action_taken, timeout_status, deleted_count=1):
     channel = bot.get_channel(config.SECURITY_LOG_CHANNEL_ID)
     if not channel:
         try:
@@ -171,20 +244,7 @@ async def send_security_log(bot, message, reason, action_taken, timeout_status):
     if not channel:
         return False
 
-    embed = discord.Embed(
-        title="Security Alert",
-        color=discord.Color.red(),
-        timestamp=datetime.now(timezone.utc),
-    )
-    embed.add_field(name="User", value=f"{message.author.mention} / {message.author}", inline=False)
-    embed.add_field(name="User ID", value=str(message.author.id), inline=False)
-    embed.add_field(name="Channel", value=message.channel.mention, inline=False)
-    embed.add_field(name="Reason", value=reason, inline=False)
-    embed.add_field(name="Message Content", value=clean_content(message), inline=False)
-    embed.add_field(name="Attachments", value=str(len(message.attachments)), inline=False)
-    embed.add_field(name="Action Taken", value=action_taken, inline=False)
-    embed.add_field(name="Timeout Duration", value=f"{timeout_duration_text()} ({timeout_status})", inline=False)
-    embed.set_footer(text=f"Message ID: {message.id}")
+    embed = build_staff_embed(message, reason, action_taken, timeout_status, deleted_count)
 
     try:
         await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
@@ -193,21 +253,23 @@ async def send_security_log(bot, message, reason, action_taken, timeout_status):
         return False
 
 
-async def handle_security_violation(bot, message, reason):
+async def handle_security_violation(bot, message, reason, messages_to_delete=None):
     """Delete, notify, timeout, DM staff, and log a suspected scam/spam message."""
-    deleted = await delete_message(message)
-    dm_sent = await dm_user(message)
+    messages_to_delete = messages_to_delete or [message]
+    deleted_count = await delete_messages(messages_to_delete)
+    dm_sent = await dm_user(message, reason)
     timed_out = await timeout_user(message)
 
     timeout_status = "applied" if timed_out else "failed - check bot role permissions"
     action_taken = (
-        f"Message deleted: {'yes' if deleted else 'no'}; "
-        f"user DM sent: {'yes' if dm_sent else 'no'}; "
-        f"timeout: {timeout_status}; no kick performed."
+        f"🧹 Deleted **{deleted_count}** recent message(s).\n"
+        f"📩 User DM: **{'sent' if dm_sent else 'failed'}**\n"
+        f"🔇 Timeout: **{timeout_status}**\n"
+        "🚫 Kick: **not performed**"
     )
 
-    await dm_owner_or_president(bot, message, reason, timeout_status)
-    await send_security_log(bot, message, reason, action_taken, timeout_status)
+    await dm_owner_or_president(bot, message, reason, action_taken, timeout_status, deleted_count)
+    await send_security_log(bot, message, reason, action_taken, timeout_status, deleted_count)
 
 
 async def handle_message_security(bot, message):
@@ -231,22 +293,25 @@ async def handle_message_security(bot, message):
         return True
 
     messages = message_history[history_key]
-    messages.append(now)
+    messages.append((now, message))
     prune_history(messages, now, 10)
 
     if len(messages) >= 4:
+        spam_messages = [stored_message for _, stored_message in messages]
         messages.clear()
-        await handle_security_violation(bot, message, "Message spam detected")
+        await handle_security_violation(bot, message, "Message spam detected", spam_messages)
         return True
 
     if has_image_attachment(message):
         images = image_history[history_key]
-        images.append(now)
+        images.append((now, message))
         prune_history(images, now, 20)
 
         if len(images) >= 3:
+            spam_images = [stored_message for _, stored_message in images]
             images.clear()
-            await handle_security_violation(bot, message, "Image spam detected")
+            messages.clear()
+            await handle_security_violation(bot, message, "Image spam detected", spam_images)
             return True
 
     return False
