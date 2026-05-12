@@ -89,6 +89,7 @@ def dashboard_page():
     join_counts = Counter()
 
     members = []
+    muted_members = []
     sorted_members = sorted(
         guild.members,
         key=lambda x: x.display_name.lower()
@@ -98,7 +99,8 @@ def dashboard_page():
         if q and q not in m.name.lower() and q not in str(m.id):
             continue
 
-        members.append({
+        timed_out = bool(m.timed_out_until and m.timed_out_until > now)
+        member_info = {
             "id": m.id,
             "name": str(m),
             "display": m.display_name,
@@ -106,9 +108,13 @@ def dashboard_page():
             "bot": m.bot,
             "roles": [r for r in m.roles if r.name != "@everyone"],
             "joined": m.joined_at.strftime("%Y-%m-%d %H:%M") if m.joined_at else "Unknown",
-            "timed_out": bool(m.timed_out_until and m.timed_out_until > now),
+            "timed_out": timed_out,
             "timed_out_until": m.timed_out_until.strftime("%Y-%m-%d %H:%M") if m.timed_out_until else "",
-        })
+        }
+        members.append(member_info)
+
+        if timed_out:
+            muted_members.append(member_info)
 
     roles = [r for r in guild.roles if r.name != "@everyone"]
     total_members = len(guild.members)
@@ -181,6 +187,7 @@ def dashboard_page():
         total_roles=total_roles,
         chart_data=chart_data,
         recent_logs=recent_logs,
+        muted_members=muted_members,
     )
 
 @app.route("/kick", methods=["POST"])

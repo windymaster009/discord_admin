@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>President Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 
 <body>
@@ -15,11 +15,48 @@
                 <p class="eyebrow">Discord Admin Panel</p>
                 <h1>President Dashboard</h1>
             </div>
-            <div class="session-card">
-                <span>Logged in as</span>
-                <strong>{{ actor }}</strong>
+
+            <div class="header-actions">
+                <a class="notification-card {% if muted_members %}notification-active{% endif %}" href="#muted-users">
+                    <span class="notification-icon">🔔</span>
+                    <span>
+                        <small>Timeout Alerts</small>
+                        <strong>{{ muted_members|length }}</strong>
+                    </span>
+                </a>
+
+                <div class="session-card">
+                    <span>Logged in as</span>
+                    <strong>{{ actor }}</strong>
+                </div>
             </div>
         </header>
+
+        {% if muted_members %}
+        <section class="quick-alerts" id="muted-users">
+            <div class="quick-alert-title">
+                <span>🔇</span>
+                <div>
+                    <h2>Muted Users Need Review</h2>
+                    <p>{{ muted_members|length }} active timeout{{ "s" if muted_members|length != 1 else "" }}</p>
+                </div>
+            </div>
+
+            <div class="quick-alert-list">
+                {% for m in muted_members[:4] %}
+                <form method="post" action="/untimeout" class="quick-alert-item">
+                    <input type="hidden" name="session" value="{{ session_id }}">
+                    <input type="hidden" name="member_id" value="{{ m.id }}">
+                    <div>
+                        <strong>{{ m.display }}</strong>
+                        <small>Until {{ m.timed_out_until }}</small>
+                    </div>
+                    <button class="btn btn-untimeout">Remove Timeout</button>
+                </form>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         <section class="stats-grid" aria-label="Server statistics">
             <article class="stat-card">

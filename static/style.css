@@ -48,6 +48,12 @@ select {
     margin-bottom: 22px;
 }
 
+.header-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+
 .eyebrow {
     margin: 0 0 4px;
     color: var(--yellow);
@@ -73,6 +79,7 @@ h2 {
 }
 
 .session-card,
+.notification-card,
 .stat-card,
 .chart-card,
 .panel {
@@ -86,6 +93,54 @@ h2 {
     min-width: 220px;
     padding: 14px 16px;
     text-align: right;
+}
+
+.notification-card {
+    display: flex;
+    min-width: 170px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.notification-card:hover {
+    border-color: rgba(250, 166, 26, 0.55);
+    background: var(--surface-hover);
+}
+
+.notification-active {
+    border-color: rgba(250, 166, 26, 0.7);
+    box-shadow: 0 0 0 1px rgba(250, 166, 26, 0.12), var(--shadow);
+}
+
+.notification-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 12px;
+    background: rgba(250, 166, 26, 0.18);
+    font-size: 20px;
+}
+
+.notification-card small,
+.notification-card strong {
+    display: block;
+}
+
+.notification-card small {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.notification-card strong {
+    color: #ffd58f;
+    font-size: 26px;
+    line-height: 1;
 }
 
 .session-card span,
@@ -277,16 +332,87 @@ select:focus {
 }
 
 .btn-kick {
-    background: var(--red);
+    background: #ed4245;
+    color: #ffffff;
+}
+
+.quick-alerts {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+    gap: 14px;
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid rgba(250, 166, 26, 0.28);
+    border-radius: 16px;
+    background: rgba(250, 166, 26, 0.08);
+}
+
+.quick-alert-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.quick-alert-title > span {
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border-radius: 14px;
+    background: rgba(250, 166, 26, 0.18);
+    font-size: 22px;
+}
+
+.quick-alert-title p {
+    color: var(--muted);
+    margin-top: 3px;
+}
+
+.quick-alert-list {
+    display: grid;
+    gap: 8px;
+}
+
+.quick-alert-item {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(21, 22, 26, 0.78);
+}
+
+.quick-alert-item strong,
+.quick-alert-item small {
+    display: block;
+}
+
+.quick-alert-item small {
+    color: var(--muted);
+    font-size: 12px;
 }
 
 .btn-ban {
-    background: #b00020;
+    background: #7f1d1d;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .btn-untimeout {
-    background: var(--yellow);
-    color: #231800;
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.btn-ban:hover {
+    background: #991b1b;
+}
+
+.btn-untimeout:hover {
+    background: #1d4ed8;
 }
 
 .table-wrap {
@@ -504,7 +630,10 @@ tbody tr:hover {
     }
 
     .dashboard-header,
+    .header-actions,
     .panel-toolbar,
+    .quick-alerts,
+    .quick-alert-item,
     .search-form,
     .action-group,
     .role-form,
@@ -516,6 +645,10 @@ tbody tr:hover {
     .session-card {
         width: 100%;
         text-align: left;
+    }
+
+    .notification-card {
+        width: 100%;
     }
 
     .stats-grid,
