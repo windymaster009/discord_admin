@@ -14,6 +14,7 @@ from dashboard import (
     setup_dashboard,
     start_dashboard,
 )
+from security import handle_message_security
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
@@ -620,6 +621,9 @@ async def on_member_join(member: discord.Member):
 @bot.event
 async def on_message(message):
     if message.author.bot:
+        return
+
+    if await handle_message_security(bot, message):
         return
 
     if message.guild and message.channel.id == REQUEST_INVITE_CHANNEL_ID:

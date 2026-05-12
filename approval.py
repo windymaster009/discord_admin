@@ -2,6 +2,7 @@ import discord
 from discord.ui import View, Button
 from discord import ButtonStyle
 
+from config import RULES_CHANNEL_ID
 from database import get_guild_settings, log_db
 
 human_votes = {}
@@ -64,7 +65,11 @@ async def approve_member(bot, member: discord.Member, approved_by: discord.Membe
     if ch:
         await ch.send(f"✅ {member.mention} was approved by {approved_by.mention}.")
 
-    await safe_dm(member, f"✅ You have been approved to join **{guild.name}**. Welcome!")
+    await safe_dm(
+        member,
+        f"✅ Congratulations, you are approved to join **{guild.name}**!\n"
+        f"Please read the server rules here: <#{RULES_CHANNEL_ID}>"
+    )
     log_db(str(approved_by), "APPROVED", str(member))
     await delete_pending_message(bot, member.id)
 
