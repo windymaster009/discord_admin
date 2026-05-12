@@ -280,6 +280,15 @@ select:focus {
     background: var(--red);
 }
 
+.btn-ban {
+    background: #b00020;
+}
+
+.btn-untimeout {
+    background: var(--yellow);
+    color: #231800;
+}
+
 .table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -360,7 +369,8 @@ tbody tr:hover {
 }
 
 .bot-tag,
-.role-badge {
+.role-badge,
+.timeout-tag {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -372,6 +382,19 @@ tbody tr:hover {
     color: #c9d0ff;
     font-size: 10px;
     padding: 3px 7px;
+}
+
+.timeout-tag {
+    background: rgba(250, 166, 26, 0.18);
+    color: #ffd58f;
+    font-size: 10px;
+    padding: 3px 7px;
+}
+
+.timeout-note {
+    margin-top: 3px;
+    color: #ffd58f;
+    font-size: 12px;
 }
 
 .roles-cell {
@@ -397,6 +420,75 @@ tbody tr:hover {
 .mono {
     font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
     font-size: 12px;
+}
+
+.activity-panel {
+    margin-top: 14px;
+}
+
+.activity-list {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+}
+
+.activity-item {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 12px;
+    padding: 13px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(21, 22, 26, 0.72);
+}
+
+.activity-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--surface-soft);
+    font-size: 20px;
+}
+
+.activity-body {
+    min-width: 0;
+}
+
+.activity-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.activity-topline strong {
+    color: #fff;
+    font-size: 14px;
+}
+
+.activity-topline span,
+.activity-body small {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.activity-body p {
+    margin-bottom: 4px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.activity-body small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.empty-state {
+    padding: 18px;
+    color: var(--muted);
 }
 
 @media (max-width: 1100px) {

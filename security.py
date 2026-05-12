@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import discord
 
 import config
+from database import log_db
 
 
 # In-memory spam tracking. This resets when the bot restarts.
@@ -227,7 +228,24 @@ async def dm_owner_or_president(bot, message, reason, action_taken, timeout_stat
         if not recipient:
             return False
 
-        await recipient.send(embed=build_staff_embed(message, reason, action_taken, timeout_status, deleted_count))
+        view = discord.ui.View()
+        try:
+            from dashboard import create_dashboard_url
+            view.add_item(
+                discord.ui.Button(
+                    label="Open Dashboard",
+                    style=discord.ButtonStyle.link,
+                    emoji="📊",
+                    url=create_dashboard_url(message.guild.id, recipient.id),
+                )
+            )
+        except Exception:
+            pass
+
+        await recipient.send(
+            embed=build_staff_embed(message, reason, action_taken, timeout_status, deleted_count),
+            view=view if view.children else None,
+        )
         return True
     except Exception:
         return False
@@ -247,7 +265,28 @@ async def send_security_log(bot, message, reason, action_taken, timeout_status, 
     embed = build_staff_embed(message, reason, action_taken, timeout_status, deleted_count)
 
     try:
-        await channel.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+        view = discord.ui.View()
+        try:
+            from dashboard import create_dashboard_url
+
+            owner_id = config.SECURITY_DM_OWNER_ID
+            if owner_id:
+                view.add_item(
+                    discord.ui.Button(
+                        label="Open Dashboard",
+                        style=discord.ButtonStyle.link,
+                        emoji="📊",
+                        url=create_dashboard_url(message.guild.id, owner_id),
+                    )
+                )
+        except Exception:
+            pass
+
+        await channel.send(
+            embed=embed,
+            view=view if view.children else None,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
         return True
     except Exception:
         return False
@@ -270,6 +309,16 @@ async def handle_security_violation(bot, message, reason, messages_to_delete=Non
 
     await dm_owner_or_president(bot, message, reason, action_taken, timeout_status, deleted_count)
     await send_security_log(bot, message, reason, action_taken, timeout_status, deleted_count)
+    log_db(
+        "Windy Security",
+        "SECURITY_TIMEOUT",
+        str(message.author),
+        (
+            f"Reason: {reason} | Channel: #{message.channel} | "
+            f"Deleted: {deleted_count} | Timeout: {timeout_status} | "
+            f"Content: {clean_content(message)}"
+        ),
+    )
 
 
 async def handle_message_security(bot, message):

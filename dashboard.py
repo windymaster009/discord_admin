@@ -15,7 +15,7 @@ from config import (
     DASHBOARD_OPEN_URL,
 )
 from approval import is_president, approval_channel
-from database import get_guild_settings, log_db
+from database import get_guild_settings, get_recent_logs, log_db
 
 app = Flask(__name__)
 
@@ -105,7 +105,9 @@ def dashboard_page():
             "avatar": m.avatar.key if m.avatar else "",
             "bot": m.bot,
             "roles": [r for r in m.roles if r.name != "@everyone"],
-            "joined": m.joined_at.strftime("%Y-%m-%d %H:%M") if m.joined_at else "Unknown"
+            "joined": m.joined_at.strftime("%Y-%m-%d %H:%M") if m.joined_at else "Unknown",
+            "timed_out": bool(m.timed_out_until and m.timed_out_until > now),
+            "timed_out_until": m.timed_out_until.strftime("%Y-%m-%d %H:%M") if m.timed_out_until else "",
         })
 
     roles = [r for r in guild.roles if r.name != "@everyone"]
@@ -156,6 +158,16 @@ def dashboard_page():
         },
     }
 
+    recent_logs = []
+    for row in get_recent_logs(50):
+        recent_logs.append({
+            "time": row.get("ts", "")[:19].replace("T", " "),
+            "actor": row.get("actor", "Unknown"),
+            "action": row.get("action", "UNKNOWN"),
+            "target": row.get("target", ""),
+            "detail": row.get("detail", ""),
+        })
+
 
     return render_template(
         "index.html",
@@ -168,6 +180,7 @@ def dashboard_page():
         bot_count=bot_count,
         total_roles=total_roles,
         chart_data=chart_data,
+        recent_logs=recent_logs,
     )
 
 @app.route("/kick", methods=["POST"])
@@ -188,6 +201,27 @@ def dashboard_kick():
             log_db(str(actor), "DASHBOARD_KICK", str(member))
 
     asyncio.run_coroutine_threadsafe(do_kick(), bot_ref.loop)
+    return redirect(url_for("dashboard_page", session=session_id))
+
+
+@app.route("/ban", methods=["POST"])
+def dashboard_ban():
+    session_id, session, guild, actor = get_dashboard_session()
+    if not guild:
+        return "403 Forbidden", 403
+
+    member_id = int(request.form.get("member_id"))
+
+    async def do_ban():
+        member = guild.get_member(member_id)
+        if member:
+            await member.ban(reason=f"Banned from dashboard by {actor}")
+            ch = approval_channel(bot_ref, guild.id)
+            if ch:
+                await ch.send(f"⛔ {actor.mention} banned {member.mention} from dashboard.")
+            log_db(str(actor), "DASHBOARD_BAN", str(member))
+
+    asyncio.run_coroutine_threadsafe(do_ban(), bot_ref.loop)
     return redirect(url_for("dashboard_page", session=session_id))
 
 
@@ -219,6 +253,27 @@ def dashboard_role():
             log_db(str(actor), f"DASHBOARD_ROLE_{action.upper()}", str(member), role.name)
 
     asyncio.run_coroutine_threadsafe(do_role(), bot_ref.loop)
+    return redirect(url_for("dashboard_page", session=session_id))
+
+
+@app.route("/untimeout", methods=["POST"])
+def dashboard_untimeout():
+    session_id, session, guild, actor = get_dashboard_session()
+    if not guild:
+        return "403 Forbidden", 403
+
+    member_id = int(request.form.get("member_id"))
+
+    async def do_untimeout():
+        member = guild.get_member(member_id)
+        if member:
+            await member.timeout(None, reason=f"Timeout removed from dashboard by {actor}")
+            ch = approval_channel(bot_ref, guild.id)
+            if ch:
+                await ch.send(f"🔊 {actor.mention} removed timeout from {member.mention} using dashboard.")
+            log_db(str(actor), "DASHBOARD_REMOVE_TIMEOUT", str(member))
+
+    asyncio.run_coroutine_threadsafe(do_untimeout(), bot_ref.loop)
     return redirect(url_for("dashboard_page", session=session_id))
 
 

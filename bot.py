@@ -619,6 +619,21 @@ async def on_member_join(member: discord.Member):
 
 
 @bot.event
+async def on_member_remove(member: discord.Member):
+    log_db("SYSTEM", "MEMBER_LEAVE", str(member), f"Guild: {member.guild.name}")
+
+
+@bot.event
+async def on_member_ban(guild: discord.Guild, user: discord.User):
+    log_db("SYSTEM", "MEMBER_BAN", str(user), f"Guild: {guild.name}")
+
+
+@bot.event
+async def on_member_unban(guild: discord.Guild, user: discord.User):
+    log_db("SYSTEM", "MEMBER_UNBAN", str(user), f"Guild: {guild.name}")
+
+
+@bot.event
 async def on_message(message):
     if message.author.bot:
         return

@@ -116,9 +116,16 @@
                                             {% if m.bot %}
                                             <span class="bot-tag">BOT</span>
                                             {% endif %}
+
+                                            {% if m.timed_out %}
+                                            <span class="timeout-tag">MUTED</span>
+                                            {% endif %}
                                         </div>
 
                                         <div class="username">{{ m.name }}</div>
+                                        {% if m.timed_out %}
+                                        <div class="timeout-note">Muted until {{ m.timed_out_until }}</div>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -142,6 +149,20 @@
                                         <button class="btn btn-kick">Kick</button>
                                     </form>
 
+                                    <form method="post" action="/ban">
+                                        <input type="hidden" name="session" value="{{ session_id }}">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+                                        <button class="btn btn-ban">Ban</button>
+                                    </form>
+
+                                    {% if m.timed_out %}
+                                    <form method="post" action="/untimeout">
+                                        <input type="hidden" name="session" value="{{ session_id }}">
+                                        <input type="hidden" name="member_id" value="{{ m.id }}">
+                                        <button class="btn btn-untimeout">Remove Timeout</button>
+                                    </form>
+                                    {% endif %}
+
                                     <form method="post" action="/role" class="role-form">
                                         <input type="hidden" name="session" value="{{ session_id }}">
                                         <input type="hidden" name="member_id" value="{{ m.id }}">
@@ -163,6 +184,44 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <section class="panel activity-panel">
+            <div class="panel-toolbar">
+                <div>
+                    <h2>Activity & Security History</h2>
+                    <p>Recent approvals, dashboard actions, mutes, kicks, bans, leaves, and security reports</p>
+                </div>
+            </div>
+
+            <div class="activity-list">
+                {% for log in recent_logs %}
+                <article class="activity-item">
+                    <div class="activity-icon">
+                        {% if "SECURITY" in log.action %}🛡️
+                        {% elif "KICK" in log.action %}🚫
+                        {% elif "BAN" in log.action %}⛔
+                        {% elif "LEAVE" in log.action %}🚪
+                        {% elif "APPROVED" in log.action %}✅
+                        {% elif "TIMEOUT" in log.action %}🔇
+                        {% else %}📝
+                        {% endif %}
+                    </div>
+                    <div class="activity-body">
+                        <div class="activity-topline">
+                            <strong>{{ log.action.replace("_", " ") }}</strong>
+                            <span>{{ log.time }}</span>
+                        </div>
+                        <p><b>{{ log.actor }}</b> → {{ log.target }}</p>
+                        {% if log.detail %}
+                        <small>{{ log.detail }}</small>
+                        {% endif %}
+                    </div>
+                </article>
+                {% else %}
+                <div class="empty-state">No activity logged yet.</div>
+                {% endfor %}
             </div>
         </section>
     </main>

@@ -76,6 +76,15 @@ def log_db(actor, action, target, detail=""):
         print("MongoDB log insert failed:", e)
 
 
+def get_recent_logs(limit=40):
+    db = get_database()
+    try:
+        return list(db.logs.find().sort("ts", -1).limit(int(limit)))
+    except PyMongoError as e:
+        print("MongoDB log query failed:", e)
+        return []
+
+
 def default_guild_settings():
     return {
         "approval_channel_id": APPROVAL_CHANNEL_ID,
